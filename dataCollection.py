@@ -11,6 +11,9 @@ class DataCollection:
         conn = paramiko.SSHClient()
         conn.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         conn.connect(hostname = ip, username = 'metrics', pkey = key)
+        now = datetime.now().strftime("%d-%m-%Y %H:%M")
+        sql_conn = sqlite3.connect('/home/ed/Dev/dashboard.db')
+        c = sql_conn.cursor()
 
         # Run command
         stdin, stdout, stderr = conn.exec_command('showsys -d')
@@ -58,12 +61,39 @@ class DataCollection:
                     patches = (patches[1].strip())
             else:
                 break
-        now = datetime.now().strftime("%d-%m-%Y %H:%M")
-        conn = sqlite3.connect('/home/ed/Dev/dashboard')
-        c = conn.cursor()
+
         c.execute('''INSERT INTO array (date, array, model, serial, version, patches, totalcap, alloccap, freecap, failedcap) 
         VALUES(?,?,?,?,?,?,?,?,?,?)''', (now, array, model, serial, version, patches, totalcap, alloccap, freecap, failedcap))
-        conn.commit()
-        conn.close
+        sql_conn.commit()
+
+
+        # Run command
+        stdin, stdout, stderr = conn.exec_command('showhost -d')
+
+        #Collect data from output
+        while True:
+            line = stdout.readline()
+            if line != '':
+                line = [splits for splits in line.split(' ')]
+                line = list(filter(None,line))
+                if(line[0]) == '--':
+                    continue
+                hostname = line[1]
+                persona = line[2]
+                wwn = line[3]
+                snp = line[4]
+            else:
+                break
+            c.execute(''' SELECT * FROM hosts WHERE (array=? AND hostname=? and persona=? AND wwn=? AND snp=?)''',
+            (array,hostname,persona,wwn,snp))
+            entry = c.fetchone()
+
+            if entry is None:            
+                c.execute(''' INSERT OR IGNORE INTO hosts (array, hostname, persona, wwn, snp)
+                VALUES(?,?,?,?,?)''', (array,hostname,persona,wwn,snp))
+                sql_conn.commit()
+                
+        sql_conn.close
+            
 
 DataCollection('10.248.231.68')
