@@ -84,6 +84,7 @@ class DataCollection:
                 snp = line[4]
             else:
                 break
+            # Check if the row exists before insert
             c.execute(''' SELECT * FROM hosts WHERE (array=? AND hostname=? and persona=? AND wwn=? AND snp=?)''',
             (array,hostname,persona,wwn,snp))
             entry = c.fetchone()
@@ -92,7 +93,7 @@ class DataCollection:
                 c.execute(''' INSERT OR IGNORE INTO hosts (array, hostname, persona, wwn, snp)
                 VALUES(?,?,?,?,?)''', (array,hostname,persona,wwn,snp))
                 sql_conn.commit()
-                
+
         sql_conn.close
             
 
