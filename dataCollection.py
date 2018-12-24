@@ -12,7 +12,7 @@ class DataCollection:
         conn.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         conn.connect(hostname = ip, username = 'metrics', pkey = key)
         now = datetime.now().strftime("%d-%m-%Y %H:%M")
-        sql_conn = sqlite3.connect('/home/ed/Dev/dashboard.db')
+        sql_conn = sqlite3.connect('/home/ed/Dev/dashboard.db', timeout=10)
         c = sql_conn.cursor()
 
         # Run command
@@ -76,12 +76,15 @@ class DataCollection:
             if line != '':
                 line = [splits for splits in line.split(' ')]
                 line = list(filter(None,line))
-                if(line[0]) == '--':
+                if line[0].startswith('Id'):
                     continue
-                hostname = line[1]
-                persona = line[2]
-                wwn = line[3]
-                snp = line[4]
+                if(line[0]).startswith('--'):
+                    continue
+                else:
+                    hostname = line[1]
+                    persona = line[2]
+                    wwn = line[3]
+                    snp = line[4]
             else:
                 break
             # Check if the row exists before insert
@@ -93,6 +96,30 @@ class DataCollection:
                 c.execute(''' INSERT OR IGNORE INTO hosts (array, hostname, persona, wwn, snp)
                 VALUES(?,?,?,?,?)''', (array,hostname,persona,wwn,snp))
                 sql_conn.commit()
+
+
+        # Run command
+        stdin, stdout, stderr = conn.exec_command('shownode')
+
+        #Collect data from output
+        while True:
+            line = stdout.readline()
+            if line != '':
+                line = [splits for splits in line.split(' ')]
+                line = list(filter(None,line))
+                if line[0].startswith('Control'):
+                    continue
+                if line[0].startswith('Node'):
+                    continue
+                else:
+                    nodename = line[1]
+                    state = line[2]
+                    led = line[6]
+            else:
+                break  
+            c.execute(''' INSERT INTO node (array, nodename, state, led, time)
+            VALUES(?,?,?,?,?)''', (array,nodename,state,led,now))
+            sql_conn.commit()
 
         sql_conn.close
             
