@@ -120,6 +120,40 @@ class DataCollection:
             c.execute(''' INSERT INTO node (array, nodename, state, led, time)
             VALUES(?,?,?,?,?)''', (array,nodename,state,led,now))
             sql_conn.commit()
+        
+
+        # Run command
+        stdin, stdout, stderr = conn.exec_command('showalert -oneline')
+
+        #Collect data from output
+        while True:
+            line = stdout.readline()
+            if line != '':
+                line = [splits for splits in line.split(' ')]
+                line = list(filter(None,line))
+                if line[0].startswith('Id'):
+                    continue
+                if line[0].startswith('---'):
+                    continue
+                if len(line) < 4:
+                    continue
+                alertid = line[0]
+                alertstate = line[1]
+                alerttime = ' '.join(line[3:5])
+                severity = line[6]
+                message = ' '.join(line[7:])
+            else:
+                break
+
+            # Check if the row exists before insert
+            c.execute(''' SELECT * FROM alert WHERE (array=? AND alertid=? AND alertstate=? AND alerttime=? AND severity=? AND message=?)''',
+            (array,alertid,alertstate,alerttime,severity,message))
+            entry = c.fetchone()
+
+            if entry is None: 
+                c.execute(''' INSERT INTO alert (array, alertid, alertstate, alerttime, severity, message)
+                VALUES(?,?,?,?,?,?)''', (array,alertid,alertstate,alerttime,severity,message))
+                sql_conn.commit()
 
         sql_conn.close
             
