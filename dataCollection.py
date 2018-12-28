@@ -22,27 +22,17 @@ class DataCollection:
         while True:
             line = stdout.readline()
             if line != '':
-                if line.startswith('System Name'):
-                    array = (line.split(':'))
-                    array = (array[1].strip())
-                if line.startswith('System Model'):
-                    model = (line.split(':'))
-                    model = (model[1].strip())
-                if line.startswith('Serial Number'):
-                    serial = (line.split(':'))
-                    serial = (serial[1].strip())
-                if line.startswith('Total Capacity'):
-                    totalcap = (line.split(':'))
-                    totalcap = (totalcap[1].strip())
-                if line.startswith('Allocated Capacity'):
-                    alloccap = (line.split(':'))
-                    alloccap = (alloccap[1].strip())
-                if line.startswith('Free Capacity'):
-                    freecap = (line.split(':'))
-                    freecap = (freecap[1].strip())
-                if line.startswith('Failed Capacity'):
-                    failedcap = (line.split(':'))
-                    failedcap = (failedcap[1].strip())
+                line = [splits for splits in line.split(':')]
+                line = list(filter(None,line))
+                if line[0].startswith('---'):
+                    continue
+                if line[0].startswith('System Name'): array=line[1].strip()
+                if line[0].startswith('System Model'): model=line[1].strip()
+                if line[0].startswith('Serial Number'): serial=line[1].strip()
+                if line[0].startswith('Total Capacity'): totalcap=line[1]
+                if line[0].startswith('Allocated Capacity'): alloccap=line[1]
+                if line[0].startswith('Free Capacity'): freecap=line[1]
+                if line[0].startswith('Failed Capacity'): failedcap=line[1]
             else:
                 break
 
