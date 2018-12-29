@@ -3,7 +3,7 @@ import sqlite3
 from datetime import datetime
 
 
-class DataCollection:
+class DailyDataCollection:
     def __init__(self,ip):
         # Connect to array using private key
         paramiko.util.log_to_file('/home/ed/Dev/ssh.log')
@@ -27,35 +27,8 @@ class DataCollection:
                 if line[0].startswith('---'):
                     continue
                 if line[0].startswith('System Name'): array=line[1].strip()
-                if line[0].startswith('System Model'): model=line[1].strip()
-                if line[0].startswith('Serial Number'): serial=line[1].strip()
-                if line[0].startswith('Total Capacity'): totalcap=line[1]
-                if line[0].startswith('Allocated Capacity'): alloccap=line[1]
-                if line[0].startswith('Free Capacity'): freecap=line[1]
-                if line[0].startswith('Failed Capacity'): failedcap=line[1]
             else:
                 break
-
-        # Run command
-        stdin, stdout, stderr = conn.exec_command('showversion')
-
-        #Collect data from output
-        while True:
-            line = stdout.readline()
-            if line != '':
-                if line.startswith('Release'):
-                    version = (line.split("Release version"))
-                    version = (version[1].strip())
-                if line.startswith('Patches'):
-                    patches = (line.split(':'))
-                    patches = (patches[1].strip())
-            else:
-                break
-
-        c.execute('''INSERT INTO array (date, array, model, serial, version, patches, totalcap, alloccap, freecap, failedcap) 
-        VALUES(?,?,?,?,?,?,?,?,?,?)''', (now, array, model, serial, version, patches, totalcap, alloccap, freecap, failedcap))
-        sql_conn.commit()
-
 
         # Run command
         stdin, stdout, stderr = conn.exec_command('showhost -d')
@@ -87,65 +60,102 @@ class DataCollection:
                 VALUES(?,?,?,?,?)''', (array,hostname,persona,wwn,snp))
                 sql_conn.commit()
 
-
         # Run command
-        stdin, stdout, stderr = conn.exec_command('shownode')
+        stdin, stdout, stderr = conn.exec_command('showvv -showcols Name,VSize_MB,Usr_Used_Perc,Compaction')
 
-        #Collect data from output
+        # Collect data from output
         while True:
             line = stdout.readline()
             if line != '':
                 line = [splits for splits in line.split(' ')]
                 line = list(filter(None,line))
-                if line[0].startswith('Control'):
-                    continue
-                if line[0].startswith('Node'):
-                    continue
-                else:
-                    nodename = line[1]
-                    state = line[2]
-                    led = line[6]
-            else:
-                break  
-            c.execute(''' INSERT INTO node (array, nodename, state, led, time)
-            VALUES(?,?,?,?,?)''', (array,nodename,state,led,now))
-            sql_conn.commit()
-        
-
-        # Run command
-        stdin, stdout, stderr = conn.exec_command('showalert -oneline')
-
-        #Collect data from output
-        while True:
-            line = stdout.readline()
-            if line != '':
-                line = [splits for splits in line.split(' ')]
-                line = list(filter(None,line))
-                if line[0].startswith('Id'):
+                if line[0].startswith('Name'):
                     continue
                 if line[0].startswith('---'):
                     continue
-                if len(line) < 4:
+                if line[0].startswith('total'):
                     continue
-                alertid = line[0]
-                alertstate = line[1]
-                alerttime = ' '.join(line[3:5])
-                severity = line[6]
-                message = ' '.join(line[7:])
+                lunname = line[0]
+                lunsize = line[1]
+                lunused_perc = line[2]
+                luncompaction = line[3]
             else:
                 break
 
             # Check if the row exists before insert
-            c.execute(''' SELECT * FROM alert WHERE (array=? AND alertid=? AND alertstate=? AND alerttime=? AND severity=? AND message=?)''',
-            (array,alertid,alertstate,alerttime,severity,message))
+            # Need to decide if we need to keep all entries or just the last one. 
+#            c.execute(''' SELECT * FROM luns WHERE (array=? AND lunname=? AND lunsize=? AND lunused_perc=? AND luncompaction=? AND time=?)''',
+#            (array,lunname,lunsize,lunused_perc,luncompaction,now))
+#            entry = c.fetchone()
+
+#            if entry is None: 
+            c.execute(''' INSERT INTO luns (array, lunname, lunsize, lunused_perc,luncompaction,time)
+            VALUES(?,?,?,?,?,?)''', (array,lunname,lunsize,lunused_perc,luncompaction,now))
+            sql_conn.commit()
+
+        # Run command
+        stdin, stdout, stderr = conn.exec_command('showpd')
+
+        # Collect data from output
+        while True:
+            line = stdout.readline()
+            if line != '':
+                line = [splits for splits in line.split(' ')]
+                line = list(filter(None,line))
+                if line[0].startswith('---'):
+                    continue
+                if line[0].startswith('Id'):
+                    continue
+                if len(line) < 6:
+                    continue
+                pdid = line[0]
+                pdcagepos = line[1]
+                pdtype = line[2]
+                pdrpm =line[3]
+                pdstate = line[4]
+                pdtotal = line[5]
+                pdfree = line[6]
+
+            else:
+                break
+
+            # Check if the row exists before insert
+            # Need to decide if we need to keep all entries or just the last one. 
+#            c.execute(''' SELECT * FROM pd WHERE (array=? AND pdid=? AND pdcagepos=? AND pdtype=? AND pdrpm=? AND pdstate=? AND pdtotal=? AND pdfree=? and time=?)''',
+#            (array,pdid,pdcagepos,pdtype,pdrpm,pdstate,pdtotal,pdfree,now))
+#            entry = c.fetchone()
+
+#            if entry is None: 
+            c.execute(''' INSERT INTO pd (array,pdid,pdcagepos,pdtype,pdrpm,pdstate,pdtotal,pdfree,time)
+            VALUES(?,?,?,?,?,?,?,?,?)''', (array,pdid,pdcagepos,pdtype,pdrpm,pdstate,pdtotal,pdfree,now))
+            sql_conn.commit()
+
+        # Run command
+        stdin, stdout, stderr = conn.exec_command('showvlun -a -showcols VVName,HostName')
+
+        # Collect data from output
+        while True:
+            line = stdout.readline()
+            if line != '':
+                line = [splits for splits in line.split(' ')]
+                line = list(filter(None,line))
+                if line[0].startswith('VVName') or line[0].startswith('HostName') or line[0].startswith('total') or len(line) < 2:
+                    continue
+                vvname = line[0]
+                vvhostname = line[1]
+
+            else:
+                break
+            c.execute(''' SELECT * FROM vlun WHERE (array=? AND vvname=? AND vvhostname=?)''',
+            (array,vvname, vvhostname))
             entry = c.fetchone()
 
             if entry is None: 
-                c.execute(''' INSERT INTO alert (array, alertid, alertstate, alerttime, severity, message)
-                VALUES(?,?,?,?,?,?)''', (array,alertid,alertstate,alerttime,severity,message))
+                c.execute(''' INSERT INTO vlun (array,vvname,vvhostname)
+                VALUES(?,?,?)''', (array,vvname,vvhostname))
                 sql_conn.commit()
 
         sql_conn.close
             
 
-DataCollection('10.248.231.68')
+DailyDataCollection('10.248.231.68')
