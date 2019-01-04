@@ -1,17 +1,18 @@
 import paramiko
 import sqlite3
 from datetime import datetime
+import time
 
 
 class DailyDataCollection:
     def __init__(self,ip):
         # Connect to array using private key
-        paramiko.util.log_to_file('/home/ed/Dev/ssh.log')
+        #paramiko.util.log_to_file('/home/ed/Dev/ssh.log')
         key = paramiko.RSAKey.from_private_key_file('/home/ed/.ssh/id_rsa')
         conn = paramiko.SSHClient()
         conn.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         conn.connect(hostname = ip, username = 'metrics', pkey = key)
-        now = datetime.now().strftime("%d-%m-%Y %H:%M")
+#        now = datetime.now().strftime("%d-%m-%Y %H:%M")
         sql_conn = sqlite3.connect('/home/ed/Dev/dashboard.db', timeout=10)
         c = sql_conn.cursor()
 
@@ -42,6 +43,8 @@ class DailyDataCollection:
                 if line[0].startswith('Id'):
                     continue
                 if(line[0]).startswith('--'):
+                    continue
+                if(line[1]).startswith('total'):
                     continue
                 else:
                     hostname = line[1]
@@ -158,4 +161,15 @@ class DailyDataCollection:
         sql_conn.close
             
 
-DailyDataCollection('10.248.231.68')
+array_list = ['172.19.241.22', '172.19.225.61', '10.251.38.1',
+            '10.251.38.5', '10.1.63.130', '10.1.63.132', '10.248.231.23',
+            '10.248.231.24', '10.248.231.68', '142.71.40.232']
+
+start_time = time.time()
+now = datetime.now().strftime("%d-%m-%Y %H:%M")
+
+for ip in array_list:
+    DailyDataCollection(ip)
+
+f1=open('./runtime.txt', 'w+')
+print(now, "--- dailydatacollection: %s seconds ---" % (time.time() - start_time), file=f1)
