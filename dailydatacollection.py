@@ -171,5 +171,5 @@ now = datetime.now().strftime("%d-%m-%Y %H:%M")
 for ip in array_list:
     DailyDataCollection(ip)
 
-f1=open('./runtime.txt', 'w+')
+f1=open('./runtime.txt', 'a+')
 print(now, "--- dailydatacollection: %s seconds ---" % (time.time() - start_time), file=f1)
