@@ -64,7 +64,7 @@ class DailyDataCollection:
                 sql_conn.commit()
 
         # Run command
-        stdin, stdout, stderr = conn.exec_command('showvv -showcols Name,VSize_MB,Usr_Used_Perc,Compaction')
+        stdin, stdout, stderr = conn.exec_command('showvv -showcols Name,UsrCPG,VSize_MB,Usr_Used_Perc,Compaction')
 
         # Collect data from output
         while True:
@@ -79,11 +79,13 @@ class DailyDataCollection:
                 if line[0].startswith('total'):
                     continue
                 lunname = line[0]
-                lunsize = line[1]
-                lunused_perc = line[2]
-                luncompaction = line[3]
+                luncpg = line[1]
+                lunsize = line[2]
+                lunused_perc = line[3]
+                luncompaction = line[4]
             else:
                 break
+
 
             # Check if the row exists before insert
             # Need to decide if we need to keep all entries or just the last one. 
@@ -92,9 +94,10 @@ class DailyDataCollection:
 #            entry = c.fetchone()
 
 #            if entry is None: 
-            c.execute(''' INSERT INTO luns (array, lunname, lunsize, lunused_perc,luncompaction,time)
-            VALUES(?,?,?,?,?,?)''', (array,lunname,lunsize,lunused_perc,luncompaction,now))
+            c.execute(''' INSERT INTO luns (array, lunname, luncpg, lunsize, lunused_perc,luncompaction,time)
+            VALUES(?,?,?,?,?,?,?)''', (array,lunname,luncpg,lunsize,lunused_perc,luncompaction,now))
             sql_conn.commit()
+
 
         # Run command
         stdin, stdout, stderr = conn.exec_command('showpd')
@@ -133,6 +136,7 @@ class DailyDataCollection:
             VALUES(?,?,?,?,?,?,?,?,?)''', (array,pdid,pdcagepos,pdtype,pdrpm,pdstate,pdtotal,pdfree,now))
             sql_conn.commit()
 
+
         # Run command
         stdin, stdout, stderr = conn.exec_command('showvlun -a -showcols VVName,HostName')
 
@@ -168,8 +172,9 @@ array_list = ['172.19.241.22', '172.19.225.61', '10.251.38.1',
 start_time = time.time()
 now = datetime.now().strftime("%d-%m-%Y %H:%M")
 
+
 for ip in array_list:
     DailyDataCollection(ip)
 
-f1=open('./runtime.txt', 'a+')
+f1=open('/home/ed/Dev/runtime.txt', 'a+')
 print(now, "--- dailydatacollection: %s seconds ---" % (time.time() - start_time), file=f1)

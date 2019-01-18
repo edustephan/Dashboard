@@ -205,5 +205,5 @@ now = datetime.now().strftime("%d-%m-%Y %H:%M")
 
 for ip in array_list:
     DataCollection(ip)
-f1=open('./runtime.txt', 'a+')
+f1=open('/home/ed/Dev/runtime.txt', 'a+')
 print(now, "--- datacollection: %s seconds ---" % (time.time() - start_time), file=f1)
